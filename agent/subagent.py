@@ -2,7 +2,7 @@
 Subagent: an isolated child agent for focused deep-dives.
 
 A subagent is NOT a renamed function. It gets:
-  - Its own fresh Gemini chat (no access to parent conversation)
+  - Its own fresh chat (no access to parent conversation)
   - A scoped subset of tools (only what the task needs)
   - A structured result it returns to the parent
 
@@ -10,12 +10,10 @@ The parent agent calls spawn_research_subagent as a tool.
 The subagent runs, does its work, and hands back a clean result.
 """
 
-import os
 import json
-from google import genai
-from google.genai import types
 from loguru import logger
 from typing import List
+from agent.llm_client import LLMClient
 
 SUBAGENT_SYSTEM_PROMPT = """You are a focused research subagent. Investigate the assigned topic deeply.
 
@@ -39,51 +37,74 @@ class SubAgent:
 
     def run(self) -> dict:
         logger.info(f"Subagent spawned | task: {self.task[:60]}...")
-        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        llm = LLMClient()
 
         # Import here to avoid circular imports at module load time
         from tools.registry import ToolRegistry
         registry = ToolRegistry()
 
-        scoped_decls = [d for d in registry._declarations if d.name in self.allowed_tools]
+        scoped_tools = [
+            t for t in registry.get_tools()
+            if t["function"]["name"] in self.allowed_tools
+        ]
 
-        config = types.GenerateContentConfig(
-            tools=[types.Tool(function_declarations=scoped_decls)],
-            system_instruction=SUBAGENT_SYSTEM_PROMPT
-        )
-        chat = client.chats.create(model="gemini-2.5-flash", config=config)
-        response = chat.send_message(self.task)
+        messages = [
+            {"role": "system", "content": SUBAGENT_SYSTEM_PROMPT},
+            {"role": "user", "content": self.task}
+        ]
+
+        def send():
+            response, provider = llm.complete(messages, scoped_tools)
+            return response
+
+        response = send()
         calls_made = 0
 
         while calls_made < SUBAGENT_TOOL_LIMIT:
-            fn_calls = []
-            try:
-                for part in response.candidates[0].content.parts:
-                    if part.function_call is not None and part.function_call.name:
-                        fn_calls.append(part.function_call)
-            except Exception:
-                pass
+            msg = response.choices[0].message
+            tool_calls = msg.tool_calls or []
 
-            if not fn_calls:
+            if not tool_calls:
+                content = msg.content or ""
+                if "<function(" in content or "<function=" in content:
+                    logger.warning("Subagent: text tool call detected — injecting correction...")
+                    messages.append({"role": "assistant", "content": content})
+                    messages.append({
+                        "role": "user",
+                        "content": (
+                            "You wrote a tool call as plain text. That does not execute anything. "
+                            "Use the structured tool_call format and call the same tool now."
+                        )
+                    })
+                    response = send()
+                    continue
                 break
 
-            parts = []
-            for fc in fn_calls:
+            cleaned = {"role": msg.role, "content": msg.content}
+            if msg.tool_calls:
+                cleaned["tool_calls"] = [
+                    {"id": tc.id, "type": "function", "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
+                    for tc in msg.tool_calls
+                ]
+            messages.append(cleaned)
+
+            for tc in tool_calls:
                 calls_made += 1
-                result = registry.execute(fc.name, dict(fc.args))
-                parts.append(
-                    types.Part.from_function_response(
-                        name=fc.name,
-                        response={"result": json.dumps(result, default=str)}
-                    )
-                )
-            response = chat.send_message(parts)
+                args = json.loads(tc.function.arguments)
+                result = registry.execute(tc.function.name, args)
+                content_str = json.dumps(result, default=str)
+                if len(content_str) > 2500:
+                    content_str = content_str[:2500] + "... [truncated]"
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": content_str
+                })
+
+            response = send()
 
         logger.info(f"Subagent done | {calls_made} tool calls")
-        try:
-            result_text = response.text
-        except Exception:
-            result_text = "Subagent completed but returned no final text."
+        result_text = response.choices[0].message.content or "Subagent completed but returned no final text."
 
         return {
             "task": self.task,
@@ -101,17 +122,20 @@ def spawn_research_subagent(topic: str) -> dict:
     ).run()
 
 
-spawn_research_subagent_declaration = types.FunctionDeclaration(
-    name="spawn_research_subagent",
-    description="Spawn an isolated subagent to deeply research a specific sub-topic. The subagent has its own context and scoped tools. Use this for focused deep-dives on one aspect of your research.",
-    parameters=types.Schema(
-        type=types.Type.OBJECT,
-        properties={
-            "topic": types.Schema(
-                type=types.Type.STRING,
-                description="The specific topic or question for the subagent to investigate"
-            )
-        },
-        required=["topic"]
-    )
-)
+spawn_research_subagent_declaration = {
+    "type": "function",
+    "function": {
+        "name": "spawn_research_subagent",
+        "description": "Spawn an isolated subagent to deeply research a specific sub-topic. The subagent has its own context and scoped tools. Use this for focused deep-dives on one aspect of your research.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "topic": {
+                    "type": "string",
+                    "description": "The specific topic or question for the subagent to investigate"
+                }
+            },
+            "required": ["topic"]
+        }
+    }
+}

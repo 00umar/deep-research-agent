@@ -1,7 +1,6 @@
 import os
 from datetime import datetime
 from models.schemas import ResearchReport
-from google.genai import types
 
 
 def compile_report(title: str, query: str, findings: str, sources: list = None) -> dict:
@@ -42,21 +41,24 @@ def compile_report(title: str, query: str, findings: str, sources: list = None) 
         return {"error": type(e).__name__, "message": str(e)}
 
 
-compile_report_declaration = types.FunctionDeclaration(
-    name="compile_report",
-    description="Compile all research findings into a structured markdown report and save it. Use this as the final step after gathering all information.",
-    parameters=types.Schema(
-        type=types.Type.OBJECT,
-        properties={
-            "title": types.Schema(type=types.Type.STRING, description="Report title"),
-            "query": types.Schema(type=types.Type.STRING, description="Original research query"),
-            "findings": types.Schema(type=types.Type.STRING, description="All compiled research findings"),
-            "sources": types.Schema(
-                type=types.Type.ARRAY,
-                items=types.Schema(type=types.Type.STRING),
-                description="List of source URLs used"
-            )
-        },
-        required=["title", "query", "findings"]
-    )
-)
+compile_report_declaration = {
+    "type": "function",
+    "function": {
+        "name": "compile_report",
+        "description": "Compile all research findings into a structured markdown report and save it. Use this as the final step after gathering all information.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Report title"},
+                "query": {"type": "string", "description": "Original research query"},
+                "findings": {"type": "string", "description": "All compiled research findings"},
+                "sources": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of source URLs used"
+                }
+            },
+            "required": ["title", "query", "findings"]
+        }
+    }
+}

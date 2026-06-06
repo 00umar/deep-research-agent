@@ -1,13 +1,29 @@
 import os
-from google import genai
-from google.genai import types
+import time
+from openai import OpenAI, RateLimitError
 from models.schemas import SummaryResult
 
 
+def _generate_with_retry(client, prompt: str, max_retries: int = 6) -> str:
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response.choices[0].message.content
+        except RateLimitError:
+            time.sleep(65)
+    raise RuntimeError("Max retries exceeded on rate limit.")
+
+
 def text_summarize(text: str, max_points: int = 5) -> dict:
-    """Summarize text and extract key points using Gemini."""
+    """Summarize text and extract key points using Groq/Llama."""
     try:
-        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        client = OpenAI(
+            api_key=os.getenv("GROQ_API_KEY"),
+            base_url="https://api.groq.com/openai/v1"
+        )
         prompt = f"""Summarize the following text and extract {max_points} key points.
 
 Format your response exactly like this:
@@ -19,12 +35,7 @@ KEY_POINTS:
 Text:
 {text[:4000]}"""
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt
-        )
-        raw = response.text
-
+        raw = _generate_with_retry(client, prompt)
         summary = raw
         key_points = []
 
@@ -46,15 +57,18 @@ Text:
         return {"error": type(e).__name__, "message": str(e)}
 
 
-text_summarize_declaration = types.FunctionDeclaration(
-    name="text_summarize",
-    description="Summarize a long text and extract key points. Use after scraping a page to distill the most important information before storing it.",
-    parameters=types.Schema(
-        type=types.Type.OBJECT,
-        properties={
-            "text": types.Schema(type=types.Type.STRING, description="The text to summarize"),
-            "max_points": types.Schema(type=types.Type.INTEGER, description="Max key points to extract (default 5)")
-        },
-        required=["text"]
-    )
-)
+text_summarize_declaration = {
+    "type": "function",
+    "function": {
+        "name": "text_summarize",
+        "description": "Summarize a long text and extract key points. Use after scraping a page to distill the most important information before storing it.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "The text to summarize"},
+                "max_points": {"type": "integer", "description": "Max key points to extract (default 5)"}
+            },
+            "required": ["text"]
+        }
+    }
+}

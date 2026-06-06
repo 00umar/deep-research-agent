@@ -15,3 +15,9 @@ logs/*.log
 outputs/
 !outputs/.gitkeep
 !logs/.gitkeep
+
+# Scratch / local files
+.vscode/
+ai_agent_frameworks_notes.md
+research_notes.txt
+PROJECT_EXPLAINED.md

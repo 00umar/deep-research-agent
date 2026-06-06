@@ -1,13 +1,20 @@
 import httpx
 from bs4 import BeautifulSoup
 from models.schemas import ScrapeResult
-from google.genai import types
 
 
 def web_scrape(url: str) -> dict:
     """Scrape and extract clean text content from a webpage."""
     try:
-        headers = {"User-Agent": "Mozilla/5.0 (compatible; ResearchAgent/1.0)"}
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/125.0.0.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+        }
         response = httpx.get(url, timeout=15, follow_redirects=True, headers=headers)
         response.raise_for_status()
 
@@ -30,14 +37,17 @@ def web_scrape(url: str) -> dict:
         return {"error": type(e).__name__, "message": str(e), "url": url}
 
 
-web_scrape_declaration = types.FunctionDeclaration(
-    name="web_scrape",
-    description="Scrape the full text content from a webpage URL. Use after web_search to get detailed information from a specific source.",
-    parameters=types.Schema(
-        type=types.Type.OBJECT,
-        properties={
-            "url": types.Schema(type=types.Type.STRING, description="The full URL to scrape")
-        },
-        required=["url"]
-    )
-)
+web_scrape_declaration = {
+    "type": "function",
+    "function": {
+        "name": "web_scrape",
+        "description": "Scrape the full text content from a webpage URL. Use after web_search to get detailed information from a specific source.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "The full URL to scrape"}
+            },
+            "required": ["url"]
+        }
+    }
+}
