@@ -3,9 +3,20 @@ from bs4 import BeautifulSoup
 from models.schemas import ScrapeResult
 
 
+_BLOCKED_DOMAINS = ("sec.gov/Archives", "sec.gov/cgi-bin")
+
 def web_scrape(url: str) -> dict:
     """Scrape and extract clean text content from a webpage."""
     try:
+        if any(d in url for d in _BLOCKED_DOMAINS):
+            return {
+                "error": "BlockedDomain",
+                "message": (
+                    "SEC.gov direct document URLs return 403. "
+                    "Use sec_search or fetch_10k_summary instead to get filing data."
+                ),
+                "url": url,
+            }
         headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

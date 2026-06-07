@@ -82,9 +82,11 @@ IMPORTANT rules:
 - compile_report MUST be called before file_write — do not write a file until you have compiled
 - Only include facts from tool results — do not invent company names, figures, or events
 - If a number is not in your tool results, say "not available" rather than guessing
-- If web_scrape returns empty or very short content, do NOT try another PDF — use the sec_search and fetch_10k_summary data you already have
-- Do NOT call compile_report until you have gathered at least 3 real facts (revenue, debt, business description, filings, news, etc.)
-- If compile_report returns an InsufficientData error, do more gathering first — do not retry with the same empty content
+- NEVER scrape sec.gov URLs — they return 403. Use sec_search and fetch_10k_summary for SEC data.
+- If web_scrape returns an error or empty content, move on — use whatever data you already have from sec_search, fetch_10k_summary, and web_search results
+- After 3 gather tools have run, proceed to compile_report even if some data is missing — write "not available" for missing fields
+- compile_report must be called in the PROCESS phase. Do not reach the output phase without having called compile_report and file_write first.
+- Do NOT write to research_notes.txt or debug.txt as intermediate files — compile and save the full report directly.
 
 OPTIONAL — use only when data supports it:
 - web_scrape: if a source has detailed content worth reading in full
@@ -225,7 +227,7 @@ with col_right:
     )
     output_files = [
         f for f in output_files
-        if os.path.basename(f) not in ("outline.txt", "scrape_log.txt", "run_log.txt", "run_log_err.txt", ".gitkeep")
+        if os.path.basename(f) not in ("outline.txt", "scrape_log.txt", "run_log.txt", "run_log_err.txt", "research_notes.txt", "debug.txt", ".gitkeep")
     ]
     latest_file = output_files[0] if output_files else None
 
