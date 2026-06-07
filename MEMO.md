@@ -53,11 +53,16 @@ or in what order.
 
 ## What More Time Would Have Addressed
 
-- **Real financial data extraction from SEC filings**: The agent retrieves filing metadata from
-  EDGAR but does not parse XBRL financial tables. For Tesla, revenue, net income, and total
-  debt all came back "not available." A proper XBRL parser (or a targeted scrape of the
-  filing viewer) would fix this. Apple worked better because its investor page had readable
-  financial text.
+- **Real financial data extraction from SEC filings**: When running the agent, financial
+  figures (revenue, net income, debt) will often appear as "not available" in the output
+  report. This is intentional honest behaviour — the system prompt explicitly instructs the
+  agent to say "not available" rather than guess. The underlying cause is that SEC.gov direct
+  document URLs return HTTP 403 to automated clients, and the web pages the agent *can*
+  scrape do not always contain structured financial tables that `extract_financial_data` can
+  parse. The agent retrieves filing metadata from EDGAR correctly; it just cannot read the
+  full document text. A proper fix would be an XBRL parser pointed at the machine-readable
+  filing data, or integration with a financial data API (e.g. SEC EDGAR XBRL viewer, Alpha
+  Vantage). This is the most meaningful gap between the current build and a production system.
 - **Longer gather phase**: `PHASE_MAX_CALLS` for gather is 6. For companies with complex
   corporate structures, 6 gather calls isn't always enough to cover subsidiaries, recent
   earnings, and filings. Raising the limit or making it configurable per query would help.
