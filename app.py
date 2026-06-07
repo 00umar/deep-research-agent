@@ -95,7 +95,7 @@ Stop when the report is saved."""
 
 # ── Header ─────────────────────────────────────────────────────────────────────
 st.title("Due Diligence Agent")
-st.caption("Autonomous corporate due diligence · Gemini · Groq · Cerebras · 50 tools · 7 namespaces")
+st.caption("Autonomous corporate due diligence · Gemini · Groq · Cerebras · 50 tools · 9 namespaces")
 
 st.divider()
 
