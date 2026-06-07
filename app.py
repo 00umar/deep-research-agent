@@ -228,6 +228,7 @@ with col_right:
     output_files = [
         f for f in output_files
         if os.path.basename(f) not in ("outline.txt", "scrape_log.txt", "run_log.txt", "run_log_err.txt", "research_notes.txt", "debug.txt", ".gitkeep")
+        and os.path.getsize(f) > 500  # ignore placeholder/empty reports
     ]
     latest_file = output_files[0] if output_files else None
 
