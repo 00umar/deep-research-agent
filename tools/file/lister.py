@@ -1,7 +1,7 @@
 import os
 
 
-def file_list(directory: str = "outputs") -> dict:
+def file_list(directory: str = "outputs", **_kwargs) -> dict:
     """List all files in a directory."""
     try:
         if not os.path.exists(directory):

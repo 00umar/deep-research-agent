@@ -173,6 +173,7 @@ class ResearchAgent:
 
             self.messages.append(_clean_msg(msg))
 
+            _stop_after_batch = False
             for tc in tool_calls:
                 self.tool_call_count += 1
                 name = tc.function.name
@@ -206,7 +207,16 @@ class ResearchAgent:
                 self._phase_call_counts[self._current_phase] += 1
                 phase_limit = PHASE_MAX_CALLS.get(self._current_phase, 8)
                 if self._phase_call_counts[self._current_phase] >= phase_limit:
-                    self._advance_phase()
+                    if self._phase_index < len(PHASE_ORDER) - 1:
+                        self._advance_phase()
+                    else:
+                        # Output phase limit reached — stop cleanly
+                        logger.info("Output phase limit reached — stopping.")
+                        _stop_after_batch = True
+                        break
+
+            if _stop_after_batch:
+                break
 
             self.messages = self.context.maybe_compress(self.messages)
             response, provider = self.llm.complete(self.messages, self._tools_for_phase())
