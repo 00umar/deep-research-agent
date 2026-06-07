@@ -1,7 +1,7 @@
 from loguru import logger
 
 
-def earnings_summary(company_name: str) -> dict:
+def earnings_summary(company_name: str = "", **_kwargs) -> dict:
     """Research a company's most recent earnings results and analyst reactions."""
     try:
         from agent.subagent import SubAgent

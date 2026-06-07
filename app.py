@@ -82,6 +82,9 @@ IMPORTANT rules:
 - compile_report MUST be called before file_write — do not write a file until you have compiled
 - Only include facts from tool results — do not invent company names, figures, or events
 - If a number is not in your tool results, say "not available" rather than guessing
+- If web_scrape returns empty or very short content, do NOT try another PDF — use the sec_search and fetch_10k_summary data you already have
+- Do NOT call compile_report until you have gathered at least 3 real facts (revenue, debt, business description, filings, news, etc.)
+- If compile_report returns an InsufficientData error, do more gathering first — do not retry with the same empty content
 
 OPTIONAL — use only when data supports it:
 - web_scrape: if a source has detailed content worth reading in full

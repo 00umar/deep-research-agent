@@ -6,6 +6,15 @@ from models.schemas import ResearchReport
 def compile_report(title: str, query: str, findings: str, sources: list = None) -> dict:
     """Compile research findings into a structured markdown report and save it."""
     try:
+        if not findings or findings.strip().startswith("[Pending") or len(findings.strip()) < 80:
+            return {
+                "error": "InsufficientData",
+                "message": (
+                    "findings is empty or still a placeholder. "
+                    "Gather real data first (sec_search, web_search, extract_financial_data), "
+                    "then call compile_report with the actual facts."
+                )
+            }
         report = ResearchReport(
             title=title,
             query=query,

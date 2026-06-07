@@ -131,7 +131,7 @@ aggregate_sentiment_declaration = {
 }
 
 
-def detect_hedging_language(text: str) -> dict:
+def detect_hedging_language(text: str = "", **_kwargs) -> dict:
     """Detect cautious or evasive language in executive statements and filings."""
     try:
         text_lower = text.lower()
